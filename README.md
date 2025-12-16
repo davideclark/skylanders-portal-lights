@@ -6,10 +6,6 @@ At start up they find all USB Portals of Power and Infinity Bases and start to c
 If a figure is placed on the portal the portal lights change to match the figures elemental type,  water is blue, fire is red etc.
 The windows version also displays a full screen colour and the name of the figure.
 
-## C# Version (Windows with LibUSB)
-
-A .NET application using LibUsbDotNet for Windows.
-
 ### Setup:
 1. Install the WinUSB driver using Zadig - see [ZADIG-SETUP.md](PortalLights-CSharp/ZADIG-SETUP.md)
 2. Build and run:
