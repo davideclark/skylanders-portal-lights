@@ -1,0 +1,47 @@
+<Window
+    x:Class="PortalLights.WinUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PortalLights.WinUI"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Skylanders Portal Background">
+
+    <Grid x:Name="RootGrid">
+        <!-- Background rectangle with brush -->
+        <Rectangle x:Name="BackgroundRect"
+                   HorizontalAlignment="Stretch"
+                   VerticalAlignment="Stretch"/>
+
+        <!-- Optional: Figure info overlay (can be hidden) -->
+        <StackPanel x:Name="InfoPanel"
+                    VerticalAlignment="Bottom"
+                    HorizontalAlignment="Center"
+                    Margin="0,0,0,40"
+                    Padding="20,10"
+                    Background="#80000000"
+                    CornerRadius="8">
+            <TextBlock x:Name="FigureInfoText"
+                       Foreground="White"
+                       FontSize="24"
+                       TextAlignment="Center"
+                       FontWeight="SemiBold"/>
+        </StackPanel>
+
+        <!-- Instructions overlay (fades out) -->
+        <StackPanel x:Name="InstructionsPanel"
+                    VerticalAlignment="Top"
+                    HorizontalAlignment="Right"
+                    Margin="20"
+                    Padding="15"
+                    Background="#80000000"
+                    CornerRadius="8">
+            <TextBlock Foreground="White" FontSize="14">
+                <Run Text="ESC - Exit"/><LineBreak/>
+                <Run Text="F11 - Toggle Fullscreen"/><LineBreak/>
+                <Run Text="I - Toggle Info"/>
+            </TextBlock>
+        </StackPanel>
+    </Grid>
+</Window>
