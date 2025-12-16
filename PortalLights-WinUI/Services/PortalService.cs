@@ -68,10 +68,24 @@ namespace PortalLights.WinUI.Services
         {
             try
             {
-                // Poll all portals
+                // Poll all portals and update LED colors
                 foreach (var portal in _portals)
                 {
                     portal.CheckForFigures();
+
+                    // Update portal LED based on detected figures
+                    if (portal.FigureCount > 0)
+                    {
+                        // One or more figures detected - show first figure's element color
+                        var firstFigure = portal.DetectedFigures.Values.First();
+                        var (r, g, b) = FigureInfo.GetElementColor(firstFigure.Element);
+                        portal.SetColour(r, g, b);
+                    }
+                    else
+                    {
+                        // No figures: Set to dim white/off
+                        portal.SetColour(20, 20, 20);
+                    }
                 }
 
                 // Get current figures from all portals

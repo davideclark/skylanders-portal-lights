@@ -9,10 +9,14 @@
     Title="Skylanders Portal Background">
 
     <Grid x:Name="RootGrid">
-        <!-- Background rectangle with brush -->
-        <Rectangle x:Name="BackgroundRect"
+        <!-- Two background rectangles for cross-fade effect -->
+        <Rectangle x:Name="BackgroundRect1"
                    HorizontalAlignment="Stretch"
                    VerticalAlignment="Stretch"/>
+        <Rectangle x:Name="BackgroundRect2"
+                   HorizontalAlignment="Stretch"
+                   VerticalAlignment="Stretch"
+                   Opacity="0"/>
 
         <!-- Optional: Figure info overlay (can be hidden) -->
         <StackPanel x:Name="InfoPanel"
@@ -21,10 +25,11 @@
                     Margin="0,0,0,40"
                     Padding="20,10"
                     Background="#80000000"
-                    CornerRadius="8">
+                    CornerRadius="8"
+                    Canvas.ZIndex="10">
             <TextBlock x:Name="FigureInfoText"
                        Foreground="White"
-                       FontSize="24"
+                       FontSize="36"
                        TextAlignment="Center"
                        FontWeight="SemiBold"/>
         </StackPanel>
@@ -36,7 +41,8 @@
                     Margin="20"
                     Padding="15"
                     Background="#80000000"
-                    CornerRadius="8">
+                    CornerRadius="8"
+                    Canvas.ZIndex="10">
             <TextBlock Foreground="White" FontSize="14">
                 <Run Text="ESC - Exit"/><LineBreak/>
                 <Run Text="F11 - Toggle Fullscreen"/><LineBreak/>

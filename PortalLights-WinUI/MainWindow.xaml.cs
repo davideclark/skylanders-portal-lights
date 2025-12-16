@@ -14,6 +14,8 @@ namespace PortalLights.WinUI
         private PortalService _portalService;
         private ThemeService _themeService;
         private bool _isFullScreen = false;
+        private bool _useRect1 = true; // Track which rectangle is currently visible
+        private Storyboard _currentStoryboard; // Track current animation
 
         public MainWindow()
         {
@@ -32,10 +34,13 @@ namespace PortalLights.WinUI
             // Show loading message
             FigureInfoText.Text = "Scanning for portals...";
 
+            // Set initial background on Rect1 immediately (no animation)
+            BackgroundRect1.Fill = _themeService.GenerateBackground(new List<PortalLights.FigureInfo>(), RootGrid.ActualWidth);
+            BackgroundRect1.Opacity = 1.0;
+            BackgroundRect2.Opacity = 0.0;
+
             await _portalService.InitializeAsync();
 
-            // Initial background (no figures)
-            UpdateBackground(new List<PortalLights.FigureInfo>());
             FigureInfoText.Text = "Place a Skylanders figure on the portal";
 
             // Auto-hide instructions after 5 seconds
@@ -52,38 +57,72 @@ namespace PortalLights.WinUI
 
         private void UpdateBackground(IReadOnlyList<PortalLights.FigureInfo> figures)
         {
+            System.Diagnostics.Debug.WriteLine($"UpdateBackground called with {figures.Count} figures");
             var brush = _themeService.GenerateBackground(figures, RootGrid.ActualWidth);
 
-            // Smooth transition
+            // Stop any ongoing animation and reset state
+            if (_currentStoryboard != null)
+            {
+                System.Diagnostics.Debug.WriteLine("  Stopping ongoing animation");
+                _currentStoryboard.Stop();
+
+                // Keep the source rect visible, hide the target that was fading in
+                // This prevents the snap - we'll start the new animation from the currently visible gradient
+                var prevTargetRect = _useRect1 ? BackgroundRect2 : BackgroundRect1;
+                var prevSourceRect = _useRect1 ? BackgroundRect1 : BackgroundRect2;
+
+                // Keep source visible, hide the incomplete target
+                prevSourceRect.Opacity = 1.0;
+                prevTargetRect.Opacity = 0.0;
+                // Don't toggle _useRect1 - we'll reuse the same source for the next animation
+
+                _currentStoryboard = null;
+            }
+
+            // Determine which rectangle to use for the new background
+            var targetRect = _useRect1 ? BackgroundRect2 : BackgroundRect1;
+            var sourceRect = _useRect1 ? BackgroundRect1 : BackgroundRect2;
+
+            System.Diagnostics.Debug.WriteLine($"  Using Rect{(_useRect1 ? "2" : "1")} as target, Rect{(_useRect1 ? "1" : "2")} as source");
+            System.Diagnostics.Debug.WriteLine($"  Source opacity before: {sourceRect.Opacity}, Target opacity before: {targetRect.Opacity}");
+            System.Diagnostics.Debug.WriteLine($"  Source has fill: {sourceRect.Fill != null}, Target has fill: {targetRect.Fill != null}");
+
+            // Set the new brush on the target rectangle
+            targetRect.Fill = brush;
+            targetRect.Opacity = 0.0; // Start hidden
+
+            // Ensure target is on top so it fades in visibly over the source
+            sourceRect.SetValue(Microsoft.UI.Xaml.Controls.Canvas.ZIndexProperty, 0);
+            targetRect.SetValue(Microsoft.UI.Xaml.Controls.Canvas.ZIndexProperty, 1);
+
+            System.Diagnostics.Debug.WriteLine($"  After setup - Source opacity: {sourceRect.Opacity}, Target opacity: {targetRect.Opacity}");
+
+            // Cross-fade: fade in the new background while the old one stays visible
+            var fadeIn = new DoubleAnimation
+            {
+                From = 0.0,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(500),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            Storyboard.SetTarget(fadeIn, targetRect);
+            Storyboard.SetTargetProperty(fadeIn, "Opacity");
+
+            fadeIn.Completed += (s, args) =>
+            {
+                System.Diagnostics.Debug.WriteLine("  Animation completed");
+                // After fade in completes, hide the old background
+                sourceRect.Opacity = 0.0;
+                // Toggle which rectangle we'll use next time
+                _useRect1 = !_useRect1;
+                _currentStoryboard = null;
+            };
+
             var storyboard = new Storyboard();
-            var fadeOut = new DoubleAnimation
-            {
-                From = 1.0,
-                To = 0.0,
-                Duration = TimeSpan.FromMilliseconds(250)
-            };
-            Storyboard.SetTarget(fadeOut, BackgroundRect);
-            Storyboard.SetTargetProperty(fadeOut, "Opacity");
-
-            fadeOut.Completed += (s, args) =>
-            {
-                BackgroundRect.Fill = brush;
-
-                var fadeIn = new DoubleAnimation
-                {
-                    From = 0.0,
-                    To = 1.0,
-                    Duration = TimeSpan.FromMilliseconds(250)
-                };
-                Storyboard.SetTarget(fadeIn, BackgroundRect);
-                Storyboard.SetTargetProperty(fadeIn, "Opacity");
-
-                var fadeInStoryboard = new Storyboard();
-                fadeInStoryboard.Children.Add(fadeIn);
-                fadeInStoryboard.Begin();
-            };
-
-            storyboard.Children.Add(fadeOut);
+            storyboard.Children.Add(fadeIn);
+            _currentStoryboard = storyboard;
+            System.Diagnostics.Debug.WriteLine("  Starting animation...");
             storyboard.Begin();
         }
 
@@ -99,8 +138,8 @@ namespace PortalLights.WinUI
             }
             else
             {
-                var names = string.Join(" + ", figures.Select(f => f.Name));
-                FigureInfoText.Text = names;
+                var namesWithElements = string.Join(" + ", figures.Select(f => $"{f.Name} ({f.Element})"));
+                FigureInfoText.Text = namesWithElements;
             }
         }
 
