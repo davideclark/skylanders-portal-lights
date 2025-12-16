@@ -1,5 +1,7 @@
 # Disney-Infinity-and-Skylanders-Lighting
-As I only have an Skylanders Portal I have not tested the Disney Infinity functionality
+As I only have an Skylanders Portal I have not tested the Disney Infinity functionality.
+These programs are written in c# and run on windows OS. 
+I have only tested it on Windows 11 but should work okay on windows 10.
 
 There are two applications a command line application and a windows application
 At start up they find all USB Portals of Power and Infinity Bases and start to colour cycle the portals led lights.
