@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PortalLights (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "PortalLights (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

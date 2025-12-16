@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using LibUsbDotNet;
 using LibUsbDotNet.Main;
+using PortalLibrary;
 
 namespace PortalLights
 {
@@ -96,7 +97,7 @@ namespace PortalLights
 
                             // Get first detected figure
                             var firstFigure = portal.DetectedFigures.Values.First();
-                            var (baseR, baseG, baseB) = PortalLights.FigureInfo.GetElementColor(firstFigure.Element);
+                            var (baseR, baseG, baseB) = FigureInfo.GetElementColor(firstFigure.Element);
 
                             portal.SetColour((byte)(baseR * brightness), (byte)(baseG * brightness), (byte)(baseB * brightness));
                         }

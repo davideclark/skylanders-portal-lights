@@ -5,6 +5,7 @@
     xmlns:local="using:PortalLights.WinUI"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
     mc:Ignorable="d"
     Title="Skylanders Portal Background">
 
@@ -17,6 +18,16 @@
                    HorizontalAlignment="Stretch"
                    VerticalAlignment="Stretch"
                    Opacity="0"/>
+
+        <!-- Particle canvas layer for Win2D particle effects -->
+        <canvas:CanvasControl x:Name="ParticleCanvas"
+                              Canvas.ZIndex="2"
+                              Draw="OnParticleDraw"
+                              Loaded="OnParticleCanvasLoaded"
+                              ClearColor="Transparent"
+                              IsHitTestVisible="False"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Stretch"/>
 
         <!-- Optional: Figure info overlay (can be hidden) -->
         <StackPanel x:Name="InfoPanel"

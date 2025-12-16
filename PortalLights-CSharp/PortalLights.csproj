@@ -2,13 +2,13 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Platforms>x64;x86</Platforms>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="LibUsbDotNet" Version="2.2.29" />
+    <ProjectReference Include="..\PortalLibrary\PortalLibrary.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,6 +16,8 @@
     <Compile Remove="Program_HID.cs" />
     <Compile Remove="InfinityPortal_HID.cs" />
     <Compile Remove="SkylandersPortal_HID.cs" />
+    <Compile Remove="SkylandersPortal.cs" />
+    <Compile Remove="InfinityPortal.cs" />
   </ItemGroup>
 
 </Project>

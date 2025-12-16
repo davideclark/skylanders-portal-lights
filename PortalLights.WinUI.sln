@@ -1,0 +1,67 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.1.11304.174
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PortalLights", "PortalLights-CSharp\PortalLights.csproj", "{AD422D02-239F-C29E-CA3B-9C4B674A94AF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PortalLights.WinUI", "PortalLights-WinUI\PortalLights.WinUI.csproj", "{29B4AAC4-BCF6-1E81-5D58-95FD00384177}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PortalLibrary", "PortalLibrary\PortalLibrary.csproj", "{6795C569-6C17-4E34-9905-B9F2A5213F24}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM64 = Debug|ARM64
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|ARM64 = Release|ARM64
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Debug|ARM64.ActiveCfg = Debug|x64
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Debug|ARM64.Build.0 = Debug|x64
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Debug|x64.ActiveCfg = Debug|x64
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Debug|x64.Build.0 = Debug|x64
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Debug|x86.ActiveCfg = Debug|x86
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Debug|x86.Build.0 = Debug|x86
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Release|ARM64.ActiveCfg = Release|x64
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Release|ARM64.Build.0 = Release|x64
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Release|x64.ActiveCfg = Release|x64
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Release|x64.Build.0 = Release|x64
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Release|x86.ActiveCfg = Release|x86
+		{AD422D02-239F-C29E-CA3B-9C4B674A94AF}.Release|x86.Build.0 = Release|x86
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Debug|ARM64.Build.0 = Debug|ARM64
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Debug|x64.ActiveCfg = Debug|x64
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Debug|x64.Build.0 = Debug|x64
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Debug|x64.Deploy.0 = Debug|x64
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Debug|x86.ActiveCfg = Debug|x86
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Debug|x86.Build.0 = Debug|x86
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Release|ARM64.ActiveCfg = Release|ARM64
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Release|ARM64.Build.0 = Release|ARM64
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Release|x64.ActiveCfg = Release|x64
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Release|x64.Build.0 = Release|x64
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Release|x64.Deploy.0 = Release|x64
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Release|x86.ActiveCfg = Release|x86
+		{29B4AAC4-BCF6-1E81-5D58-95FD00384177}.Release|x86.Build.0 = Release|x86
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Debug|x64.Build.0 = Debug|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Debug|x86.Build.0 = Debug|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Release|ARM64.Build.0 = Release|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Release|x64.ActiveCfg = Release|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Release|x64.Build.0 = Release|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Release|x86.ActiveCfg = Release|Any CPU
+		{6795C569-6C17-4E34-9905-B9F2A5213F24}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DB9719C4-1A42-4807-99B8-68A1A48B28C4}
+	EndGlobalSection
+EndGlobal

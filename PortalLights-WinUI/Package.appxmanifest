@@ -13,6 +13,7 @@
   <Properties>
     <DisplayName>Skylanders Portal Background</DisplayName>
     <PublisherDisplayName>David Clark</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
   <Dependencies>
@@ -31,7 +32,12 @@
       <uap:VisualElements
         DisplayName="Skylanders Portal Background"
         Description="Full-screen elemental-themed background display for Skylanders figures"
-        BackgroundColor="#0078D7" />
+        BackgroundColor="#0078D7"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
     </Application>
   </Applications>
 

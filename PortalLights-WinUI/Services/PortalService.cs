@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using PortalLights; // Reference to existing project
+using PortalLibrary; // Reference to shared library
 using Microsoft.UI.Dispatching;
 using LibUsbDotNet;
 using LibUsbDotNet.Main;
