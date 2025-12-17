@@ -9,8 +9,8 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
 {
     public class MagicParticleRenderer : IParticleRenderer
     {
-        private const int MAX_PARTICLES = 120;
-        private const float EMISSION_RATE = 10.0f;
+        private const int MAX_PARTICLES = 240;
+        private const float EMISSION_RATE = 20.0f;
         private float _emissionAccumulator = 0.0f;
 
         public void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime, ParticleSide side)
@@ -27,7 +27,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
                 {
                     Position = new Vector2(x, (float)(Random.Shared.NextDouble() * canvasSize.Height)),
                     Velocity = Vector2.Zero, // Stationary sparkles
-                    Size = (float)(Random.Shared.NextDouble() * 12 + 4), // 4-16 pixels (4x)
+                    Size = (float)(Random.Shared.NextDouble() * 24 + 8), // 8-32 pixels (8x - twice as big)
                     Opacity = 0.0f, // Start invisible
                     Life = 1.0f,
                     PhaseOffset = (float)(Random.Shared.NextDouble() * Math.PI * 2),
@@ -99,7 +99,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
 
         private Color GetMagicColor()
         {
-            return Color.FromArgb(255, 100, 255, 255); // Cyan/teal
+            return Color.FromArgb(255, 255, 100, 255); // Bright purple/magenta
         }
 
         private float GetXPositionForSide(ParticleSide side, double canvasWidth)

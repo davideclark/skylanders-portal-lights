@@ -50,10 +50,8 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
                 p.Position += p.Velocity * deltaTime;
                 p.Rotation += deltaTime * 2.0f;
 
-                p.Life -= deltaTime * 0.6f; // ~1.7 second lifetime
-
-                // Remove when hitting bottom or life depleted
-                if (p.Position.Y > canvasSize.Height + 20 || p.Life <= 0)
+                // Remove when hitting bottom
+                if (p.Position.Y > canvasSize.Height + 20)
                     particles.RemoveAt(i);
             }
         }

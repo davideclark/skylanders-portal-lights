@@ -26,6 +26,11 @@ namespace PortalLights.WinUI
         private bool _useRect1 = true; // Track which rectangle is currently visible
         private Storyboard _currentStoryboard; // Track current animation
 
+        // Test mode fields (for keyboard-driven particle testing)
+        private Dictionary<ElementType, FigureInfo> _testFiguresLeft = new();
+        private Dictionary<ElementType, FigureInfo> _testFiguresRight = new();
+        private List<FigureInfo> _lastRealFigures = new();
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -71,10 +76,28 @@ namespace PortalLights.WinUI
                     System.Diagnostics.Debug.WriteLine($"  - {fig.Name} ({fig.Element}) on {fig.PortalName}");
                 }
             }
-            UpdateBackground(e.Figures);
-            UpdateFigurePanels(e.Figures);
-            System.Diagnostics.Debug.WriteLine($"Calling SetActiveElements with {e.Figures.Count} figures");
-            _particleEngine.SetActiveElements(e.Figures);
+
+            // Store real figures
+            _lastRealFigures = e.Figures.ToList();
+
+            // Merge with test figures and update
+            RefreshParticlesWithTestFigures();
+        }
+
+        private void RefreshParticlesWithTestFigures()
+        {
+            // Merge real figures with test figures
+            var allFigures = new List<FigureInfo>();
+            allFigures.AddRange(_lastRealFigures);
+            allFigures.AddRange(_testFiguresLeft.Values);
+            allFigures.AddRange(_testFiguresRight.Values);
+
+            System.Diagnostics.Debug.WriteLine($"[TEST MODE] RefreshParticles: {_lastRealFigures.Count} real + {_testFiguresLeft.Count} test-left + {_testFiguresRight.Count} test-right = {allFigures.Count} total");
+
+            // Update all visual elements
+            UpdateBackground(allFigures);
+            UpdateFigurePanels(allFigures);
+            _particleEngine.SetActiveElements(allFigures);
         }
 
         private void UpdateBackground(IReadOnlyList<FigureInfo> figures)
@@ -304,6 +327,35 @@ namespace PortalLights.WinUI
             return container;
         }
 
+        private void ToggleTestElement(ElementType element, bool isRightSide)
+        {
+            var targetDict = isRightSide ? _testFiguresRight : _testFiguresLeft;
+            var portalId = isRightSide ? 0x1F17 : 0x0150;
+            var portalName = isRightSide ? "Test (Right)" : "Test (Left)";
+
+            if (targetDict.ContainsKey(element))
+            {
+                // Toggle OFF - remove from test figures
+                targetDict.Remove(element);
+                System.Diagnostics.Debug.WriteLine($"[TEST MODE] Removed {element} from {(isRightSide ? "right" : "left")} side");
+            }
+            else
+            {
+                // Toggle ON - add to test figures
+                var testFigure = new FigureInfo(
+                    name: $"Test {element}",
+                    element: element,
+                    portalProductId: portalId,
+                    portalName: portalName
+                );
+                targetDict[element] = testFigure;
+                System.Diagnostics.Debug.WriteLine($"[TEST MODE] Added {element} to {(isRightSide ? "right" : "left")} side");
+            }
+
+            // Refresh particle engine with combined figures
+            RefreshParticlesWithTestFigures();
+        }
+
         private void SetupKeyboardHandlers()
         {
             RootGrid.KeyDown += (s, e) =>
@@ -321,6 +373,32 @@ namespace PortalLights.WinUI
                     InfoPanel.Visibility = InfoPanel.Visibility == Visibility.Visible
                         ? Visibility.Collapsed
                         : Visibility.Visible;
+                }
+                else
+                {
+                    // Check for Ctrl modifier using keyboard state
+                    var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
+                    bool isCtrlPressed = (ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+
+                    // Function key mapping (F1-F8 = VirtualKey.F1 through F8)
+                    ElementType? targetElement = e.Key switch
+                    {
+                        Windows.System.VirtualKey.F1 => ElementType.Magic,
+                        Windows.System.VirtualKey.F2 => ElementType.Water,
+                        Windows.System.VirtualKey.F3 => ElementType.Fire,
+                        Windows.System.VirtualKey.F4 => ElementType.Life,
+                        Windows.System.VirtualKey.F5 => ElementType.Earth,
+                        Windows.System.VirtualKey.F6 => ElementType.Air,
+                        Windows.System.VirtualKey.F7 => ElementType.Undead,
+                        Windows.System.VirtualKey.F8 => ElementType.Tech,
+                        _ => null
+                    };
+
+                    if (targetElement.HasValue)
+                    {
+                        ToggleTestElement(targetElement.Value, isCtrlPressed);
+                        e.Handled = true;
+                    }
                 }
             };
 

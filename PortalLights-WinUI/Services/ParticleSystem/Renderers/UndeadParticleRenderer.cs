@@ -53,7 +53,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
                 p.Position += new Vector2(sineX * deltaTime, 0);
                 p.Position += p.Velocity * deltaTime;
 
-                p.Life -= deltaTime * 0.4f; // 2.5 second lifetime
+                p.Life -= deltaTime * 0.2f; // 5 second lifetime
 
                 // Fade in and out
                 if (p.Life > 0.7f)

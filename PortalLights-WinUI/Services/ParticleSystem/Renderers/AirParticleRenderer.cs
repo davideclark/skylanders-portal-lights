@@ -19,21 +19,33 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
             int toEmit = (int)_emissionAccumulator;
             _emissionAccumulator -= toEmit;
 
+            if (toEmit > 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AIR] EmitParticles: side={side}, toEmit={toEmit}, canvasWidth={canvasSize.Width}");
+            }
+
             for (int i = 0; i < toEmit && particles.Count < MAX_PARTICLES; i++)
             {
-                float y = GetYPositionForSide(side, canvasSize.Height);
+                float y = (float)(Random.Shared.NextDouble() * canvasSize.Height);
+                float x = GetXPositionForSide(side, canvasSize.Width);
+
+                // Determine horizontal velocity based on side
+                float horizontalVelocity = side == ParticleSide.Right
+                    ? -(float)(Random.Shared.NextDouble() * 60 + 40)  // Drift left for right side
+                    : (float)(Random.Shared.NextDouble() * 60 + 40);   // Drift right for left/both
 
                 particles.Add(new Particle
                 {
-                    Position = new Vector2(-20, y), // Start from left edge
+                    Position = new Vector2(x, y),
                     Velocity = new Vector2(
-                        (float)(Random.Shared.NextDouble() * 60 + 40), // Horizontal movement
+                        horizontalVelocity,
                         (float)(Random.Shared.NextDouble() - 0.5) * 20  // Slight vertical drift
                     ),
                     Size = (float)(Random.Shared.NextDouble() * 40 + 20), // 20-60 pixels (4x)
-                    Opacity = (float)(Random.Shared.NextDouble() * 0.4 + 0.2), // 0.2-0.6
+                    Opacity = (float)(Random.Shared.NextDouble() * 0.3 + 0.6), // 0.6-0.9 - much more visible
                     Life = 1.0f,
                     PhaseOffset = (float)(Random.Shared.NextDouble() * Math.PI * 2),
+                    Scale = (float)side, // Store side info: 0=Left, 1=Right, 2=Both
                     Color = GetAirColor()
                 });
             }
@@ -42,6 +54,9 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
         public void UpdateParticles(List<Particle> particles, float deltaTime, Size canvasSize)
         {
             var time = (float)DateTime.Now.TimeOfDay.TotalSeconds;
+            float midpoint = (float)(canvasSize.Width * 0.5);
+            // Fade distance: 3 seconds of travel at average speed (50 px/s) = ~150 pixels
+            float fadeDistance = 200f;
 
             for (int i = particles.Count - 1; i >= 0; i--)
             {
@@ -52,11 +67,40 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
                 p.Position += new Vector2(0, sineY * deltaTime);
                 p.Position += p.Velocity * deltaTime;
 
-                p.Life -= deltaTime * 0.4f; // 2.5 second lifetime
-                p.Opacity = p.Life * 0.5f;
+                // Calculate fade based on distance from boundary
+                if (p.Scale == 2f) // Both - fade near right edge
+                {
+                    float distanceFromEdge = (float)canvasSize.Width - p.Position.X;
+                    p.Life = Math.Min(1.0f, distanceFromEdge / fadeDistance);
+                }
+                else if (p.Scale == 0f) // Left side - fade near midpoint
+                {
+                    float distanceFromMidpoint = midpoint - p.Position.X;
+                    p.Life = Math.Min(1.0f, distanceFromMidpoint / fadeDistance);
+                }
+                else // Right side (1f) - fade near midpoint
+                {
+                    float distanceFromMidpoint = p.Position.X - midpoint;
+                    p.Life = Math.Min(1.0f, distanceFromMidpoint / fadeDistance);
+                }
 
-                // Remove when off-screen
-                if (p.Position.X > canvasSize.Width + 20 || p.Life <= 0)
+                // Check side boundaries (Scale stores side: 0=Left, 1=Right, 2=Both)
+                bool shouldRemove = false;
+
+                if (p.Scale == 2f) // Both - can cross entire screen
+                {
+                    shouldRemove = p.Position.X > canvasSize.Width + 20;
+                }
+                else if (p.Scale == 0f) // Left side
+                {
+                    shouldRemove = p.Position.X > midpoint || p.Position.X < -20;
+                }
+                else // Right side (1f)
+                {
+                    shouldRemove = p.Position.X > canvasSize.Width + 20 || p.Position.X < midpoint;
+                }
+
+                if (shouldRemove)
                     particles.RemoveAt(i);
             }
         }
@@ -65,7 +109,9 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
         {
             foreach (var p in particles)
             {
-                var color = Color.FromArgb((byte)(p.Opacity * 255), p.Color.R, p.Color.G, p.Color.B);
+                // Apply fade-out effect based on Life (1.0 = full opacity, 0.0 = transparent)
+                var opacity = p.Opacity * p.Life;
+                var color = Color.FromArgb((byte)(opacity * 255), p.Color.R, p.Color.G, p.Color.B);
 
                 // Draw cloud-like circular shape
                 ds.FillEllipse(p.Position, p.Size, p.Size * 0.6f, color);
@@ -75,18 +121,23 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
 
         private Color GetAirColor()
         {
-            // White/light yellow for air/clouds
-            return Color.FromArgb(255, 245, 245, 255);
+            // Light cyan/blue for better contrast against yellow/white background
+            return Color.FromArgb(255, 200, 230, 255);
         }
 
-        private float GetYPositionForSide(ParticleSide side, double canvasHeight)
+        private float GetXPositionForSide(ParticleSide side, double canvasWidth)
         {
-            return side switch
+            float result = side switch
             {
-                ParticleSide.Left => (float)(Random.Shared.NextDouble() * canvasHeight * 0.5),
-                ParticleSide.Right => (float)(Random.Shared.NextDouble() * canvasHeight * 0.5 + canvasHeight * 0.5),
-                _ => (float)(Random.Shared.NextDouble() * canvasHeight)
+                // Left: spawn at left edge and drift right within left half
+                ParticleSide.Left => -20f,
+                // Right: spawn at right edge and drift left within right half
+                ParticleSide.Right => (float)canvasWidth + 20f,
+                // Both: spawn at far left and drift across full width
+                _ => -20f
             };
+
+            return result;
         }
     }
 }

@@ -9,8 +9,8 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
 {
     public class WaterParticleRenderer : IParticleRenderer
     {
-        private const int MAX_PARTICLES = 100;
-        private const float EMISSION_RATE = 5.0f;
+        private const int MAX_PARTICLES = 150;
+        private const float EMISSION_RATE = 8.0f;
         private float _emissionAccumulator = 0.0f;
         private List<Ripple> _ripples = new();
 
@@ -38,10 +38,10 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
                         (float)(Random.Shared.NextDouble() - 0.5) * 10,
                         (float)(Random.Shared.NextDouble() * 100 + 80) // Downward
                     ),
-                    Size = (float)(Random.Shared.NextDouble() * 16 + 8), // 8-24 pixels (4x)
-                    Opacity = 0.7f,
+                    Size = (float)(Random.Shared.NextDouble() * 12 + 6), // 6-18 pixels - smaller droplets
+                    Opacity = 0.9f, // Brighter
                     Life = 1.0f,
-                    Color = Color.FromArgb(255, 100, 180, 255) // Light blue
+                    Color = Color.FromArgb(255, 200, 240, 255) // Bright cyan/white
                 });
             }
         }
@@ -54,24 +54,31 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
 
                 // Apply gravity
                 p.Velocity += new Vector2(0, 200 * deltaTime);
+
+                // Apply air resistance/drag - smaller droplets have more drag, fall slower
+                // Larger droplets have less drag, fall faster and stretch more
+                float dragCoefficient = 36.0f / p.Size; // Inverse relationship: smaller = more drag
+                float drag = p.Velocity.Y * dragCoefficient * deltaTime;
+                p.Velocity -= new Vector2(0, drag);
+
                 p.Position += p.Velocity * deltaTime;
 
-                p.Life -= deltaTime * 0.8f;
-
-                // Create ripple when hitting bottom
+                // Create ripple and recycle droplet when hitting bottom
                 if (p.Position.Y >= canvasSize.Height - 10)
                 {
                     _ripples.Add(new Ripple
                     {
-                        Position = p.Position,
+                        Position = new Vector2(p.Position.X, (float)canvasSize.Height),
                         Radius = 0,
                         Life = 1.0f
                     });
-                    particles.RemoveAt(i);
-                }
-                else if (p.Life <= 0)
-                {
-                    particles.RemoveAt(i);
+
+                    // Recycle droplet - move back to top with new random X position
+                    p.Position = new Vector2(p.Position.X, 0);
+                    p.Velocity = new Vector2(
+                        (float)(Random.Shared.NextDouble() - 0.5) * 10,
+                        (float)(Random.Shared.NextDouble() * 100 + 80)
+                    );
                 }
             }
 
@@ -89,19 +96,25 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
 
         public void Render(CanvasDrawingSession ds, List<Particle> particles, Size canvasSize)
         {
-            // Draw droplets
+            // Draw droplets - stretch based on velocity
             foreach (var p in particles)
             {
-                var color = Color.FromArgb((byte)(p.Opacity * 255), 100, 180, 255);
-                ds.FillEllipse(p.Position, p.Size, p.Size * 1.5f, color); // Elongated
+                var color = Color.FromArgb((byte)(p.Opacity * 255), 200, 240, 255);
+
+                // Stretch factor based on falling velocity (Y velocity)
+                // Cap the stretch to create realistic teardrop shapes, not extreme streaks
+                float velocityFactor = Math.Min(2.5f, Math.Max(1.0f, p.Velocity.Y / 150.0f));
+                float stretchHeight = p.Size * velocityFactor;
+
+                ds.FillEllipse(p.Position, p.Size, stretchHeight, color);
             }
 
-            // Draw ripples
+            // Draw ripples - brighter and thicker
             foreach (var r in _ripples)
             {
-                var opacity = (byte)(r.Life * 100);
-                var color = Color.FromArgb(opacity, 100, 200, 255);
-                ds.DrawCircle(r.Position, r.Radius, color, 2.0f);
+                var opacity = (byte)(r.Life * 180); // Brighter ripples
+                var color = Color.FromArgb(opacity, 200, 240, 255);
+                ds.DrawCircle(r.Position, r.Radius, color, 3.0f); // Thicker stroke
             }
         }
 
