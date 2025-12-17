@@ -56,7 +56,7 @@ namespace PortalLights.WinUI.Services
             });
 
             // Start polling for figure changes
-            _pollTimer = new Timer(CheckFigures, null, 0, 1000); // Check every 1 second
+            _pollTimer = new Timer(CheckFigures, null, 0, 500); // Check every 500ms (2 times per second)
         }
 
         public IReadOnlyList<FigureInfo> GetCurrentFigures()

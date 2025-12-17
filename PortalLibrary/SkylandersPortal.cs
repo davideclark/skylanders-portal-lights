@@ -96,7 +96,7 @@ namespace PortalLibrary
         private const int PRODUCT_ID = 0x0150;
         private const int XBOX_PRODUCT_ID = 0x1F17;
         private const int CACHE_EXPIRY_SECONDS = 30; // Cache stats for 30 seconds
-        private const int DEBOUNCE_CYCLES = 3; // Number of missing cycles before removing a figure
+        private const int DEBOUNCE_CYCLES = 3; // Number of missing cycles before removing a figure (with 500ms polling = 1.5s)
 
         // Public properties
         public string PortalName => portalName;
@@ -450,12 +450,17 @@ namespace PortalLibrary
                         {
                             int dataOffset = offset + 3; // Skip command byte, figure index, block index
 
-                            // Read Figure ID from offset 0x00 (using first byte for character identification)
+                            // Read Figure ID as 16-bit little-endian integer from offset 0x00
+                            // Per documentation: Figure ID is a 16-bit integer at offset 0x00
+                            ushort figureId16 = (ushort)(block1Response[dataOffset + 0x00] | (block1Response[dataOffset + 0x01] << 8));
+
+                            // For backward compatibility with database, use low byte only
+                            // (most figures have high byte = 0x00)
                             byte figureId = block1Response[dataOffset + 0x00];
 
                             // Create cache key combining index and figure ID
                             string cacheKey = $"{figureIndex}_{figureId}";
-                            System.Diagnostics.Debug.WriteLine($"[{portalName}] Read figureId: 0x{figureId:X2} at index {figureIndex:X2}");
+                            System.Diagnostics.Debug.WriteLine($"[{portalName}] Read figureId: 0x{figureId:X2} (full 16-bit: 0x{figureId16:X4}) at index {figureIndex:X2}");
                             System.Diagnostics.Debug.WriteLine($"[{portalName}] Cache key: {cacheKey}, Cache contains: {figureStatsCache.ContainsKey(cacheKey)}, Total cache entries: {figureStatsCache.Count}");
 
                             FigureInfo? figureInfo = null;
@@ -685,12 +690,25 @@ namespace PortalLibrary
                             if (!detectedFigures.ContainsKey(figureIndex))
                             {
                                 // New figure detected - identify it
+                                System.Diagnostics.Debug.WriteLine($"[{portalName}] Identifying NEW figure at index {figureIndex}");
                                 FigureInfo? figureInfo = IdentifyFigure(figureIndex);
                                 if (figureInfo != null)
                                 {
+                                    System.Diagnostics.Debug.WriteLine($"[{portalName}] Adding {figureInfo.Name} to dictionary at index {figureIndex} (GetHashCode: {figureInfo.GetHashCode()})");
                                     detectedFigures[figureIndex] = figureInfo;
                                     Console.WriteLine($"[{portalName}] *** Figure PLACED at index {figureIndex}: {figureInfo.Name} ({figureInfo.Element}) ***");
+                                    System.Diagnostics.Debug.WriteLine($"[{portalName}] Dictionary now contains {detectedFigures.Count} figures: {string.Join(", ", detectedFigures.Values.Select(f => f.Name))}");
                                 }
+                                else
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[{portalName}] IdentifyFigure returned null for index {figureIndex}");
+                                }
+                            }
+                            else
+                            {
+                                // Figure already detected - verify it's still the same
+                                var existingFigure = detectedFigures[figureIndex];
+                                System.Diagnostics.Debug.WriteLine($"[{portalName}] Figure at index {figureIndex} already tracked as {existingFigure.Name} (GetHashCode: {existingFigure.GetHashCode()})");
                             }
                         }
                         else if (status == 0b10)
@@ -734,7 +752,8 @@ namespace PortalLibrary
                 FigureInfo removedFigure = detectedFigures[figureIndex];
                 detectedFigures.Remove(figureIndex);
                 figureMissingCount.Remove(figureIndex);
-                Console.WriteLine($"[{portalName}] *** Figure REMOVED at index {figureIndex}: {removedFigure.Name} ***");
+                Console.WriteLine($"[{portalName}] *** Figure REMOVED (debounce) at index {figureIndex}: {removedFigure.Name} ***");
+                System.Diagnostics.Debug.WriteLine($"[{portalName}] Removed {removedFigure.Name} after {DEBOUNCE_CYCLES} missing cycles");
             }
         }
 
