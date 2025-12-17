@@ -1,4 +1,6 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.Graphics.Canvas.UI.Xaml;
@@ -10,6 +12,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Foundation;
+using Windows.UI;
+using Windows.UI.Text;
 
 namespace PortalLights.WinUI
 {
@@ -64,11 +68,11 @@ namespace PortalLights.WinUI
             {
                 foreach (var fig in e.Figures)
                 {
-                    System.Diagnostics.Debug.WriteLine($"  - {fig.Name} ({fig.Element})");
+                    System.Diagnostics.Debug.WriteLine($"  - {fig.Name} ({fig.Element}) on {fig.PortalName}");
                 }
             }
             UpdateBackground(e.Figures);
-            UpdateInfoText(e.Figures);
+            UpdateFigurePanels(e.Figures);
             System.Diagnostics.Debug.WriteLine($"Calling SetActiveElements with {e.Figures.Count} figures");
             _particleEngine.SetActiveElements(e.Figures);
         }
@@ -144,21 +148,160 @@ namespace PortalLights.WinUI
             storyboard.Begin();
         }
 
-        private void UpdateInfoText(IReadOnlyList<FigureInfo> figures)
+        private void UpdateFigurePanels(IReadOnlyList<FigureInfo> figures)
         {
-            if (figures.Count == 0)
+            // Separate figures by portal product ID
+            var pspcFigures = figures.Where(f => f.PortalProductId == 0x0150).ToList();
+            var xboxFigures = figures.Where(f => f.PortalProductId == 0x1F17).ToList();
+
+            System.Diagnostics.Debug.WriteLine($"UpdateFigurePanels: PS/PC={pspcFigures.Count}, Xbox={xboxFigures.Count}");
+
+            PopulatePanel(LeftFigurePanel, pspcFigures);
+            PopulatePanel(RightFigurePanel, xboxFigures);
+
+            // Hide center panel if figures present, show if no figures
+            if (figures.Count > 0)
             {
-                FigureInfoText.Text = "Place a Skylanders figure on the portal";
-            }
-            else if (figures.Count == 1)
-            {
-                FigureInfoText.Text = $"{figures[0].Name} ({figures[0].Element})";
+                InfoPanel.Visibility = Visibility.Collapsed;
             }
             else
             {
-                var namesWithElements = string.Join(" + ", figures.Select(f => $"{f.Name} ({f.Element})"));
-                FigureInfoText.Text = namesWithElements;
+                FigureInfoText.Text = "Place a Skylanders figure on the portal";
+                InfoPanel.Visibility = Visibility.Visible;
             }
+        }
+
+        private void PopulatePanel(StackPanel panel, List<FigureInfo> figures)
+        {
+            panel.Children.Clear();
+
+            if (figures.Count == 0)
+            {
+                panel.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            panel.Visibility = Visibility.Visible;
+
+            foreach (var figure in figures)
+            {
+                var figureDisplay = CreateFigureDisplay(figure);
+                panel.Children.Add(figureDisplay);
+            }
+        }
+
+        private UIElement CreateFigureDisplay(FigureInfo figure)
+        {
+            var container = new StackPanel
+            {
+                Spacing = 8,
+                Padding = new Thickness(10)
+            };
+
+            // Get element color for accent
+            var (r, g, b) = FigureInfo.GetElementColor(figure.Element);
+            var accentColor = Color.FromArgb(255, r, g, b);
+            var accentBrush = new SolidColorBrush(accentColor);
+
+            // Figure name with element color accent
+            var nameText = new TextBlock
+            {
+                Text = figure.Name,
+                Foreground = accentBrush,
+                FontSize = 28,
+                FontWeight = Microsoft.UI.Text.FontWeights.Bold
+            };
+            container.Children.Add(nameText);
+
+            // Element type
+            var elementText = new TextBlock
+            {
+                Text = figure.Element.ToString(),
+                Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                FontSize = 18
+            };
+            container.Children.Add(elementText);
+
+            // Show stats if decryption succeeded
+            if (figure.DecryptionSucceeded && figure.Level.HasValue)
+            {
+                // Level display
+                var levelText = new TextBlock
+                {
+                    Text = figure.GetLevelDisplay(),
+                    Foreground = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)),
+                    FontSize = 22,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    Margin = new Thickness(0, 8, 0, 0)
+                };
+                container.Children.Add(levelText);
+
+                // Experience display with progress bar
+                if (figure.Experience.HasValue && figure.MaxExperience.HasValue)
+                {
+                    var xpText = new TextBlock
+                    {
+                        Text = figure.GetExperienceDisplay(),
+                        Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                        FontSize = 16
+                    };
+                    container.Children.Add(xpText);
+
+                    // Progress bar
+                    var progressBar = new ProgressBar
+                    {
+                        Value = figure.GetExperienceProgress() * 100,
+                        Maximum = 100,
+                        Height = 8,
+                        Width = 200,
+                        Foreground = accentBrush,
+                        Margin = new Thickness(0, 4, 0, 0)
+                    };
+                    container.Children.Add(progressBar);
+                }
+
+                // Gold display
+                if (figure.Gold.HasValue)
+                {
+                    var goldText = new TextBlock
+                    {
+                        Text = $"Gold: {figure.Gold.Value}",
+                        Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 215, 0)),
+                        FontSize = 16,
+                        Margin = new Thickness(0, 4, 0, 0)
+                    };
+                    container.Children.Add(goldText);
+                }
+
+                // Playtime display
+                if (figure.PlaytimeSeconds.HasValue)
+                {
+                    var hours = figure.PlaytimeSeconds.Value / 3600;
+                    var minutes = (figure.PlaytimeSeconds.Value % 3600) / 60;
+                    var playtimeText = new TextBlock
+                    {
+                        Text = $"Playtime: {hours}h {minutes}m",
+                        Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                        FontSize = 16
+                    };
+                    container.Children.Add(playtimeText);
+                }
+            }
+            // Note: "Reading stats..." message disabled since decryption is currently disabled
+            // else if (!figure.DecryptionSucceeded && figure.Level == null)
+            // {
+            //     var loadingText = new TextBlock
+            //     {
+            //         Text = "Reading stats...",
+            //         Foreground = new SolidColorBrush(Color.FromArgb(150, 255, 255, 255)),
+            //         FontSize = 14,
+            //         FontStyle = Windows.UI.Text.FontStyle.Italic,
+            //         Margin = new Thickness(0, 4, 0, 0)
+            //     };
+            //     container.Children.Add(loadingText);
+            // }
+
+            return container;
         }
 
         private void SetupKeyboardHandlers()
@@ -219,8 +362,6 @@ namespace PortalLights.WinUI
         private void OnParticleDraw(CanvasControl sender, CanvasDrawEventArgs args)
         {
             var size = new Size(sender.ActualWidth, sender.ActualHeight);
-            System.Diagnostics.Debug.WriteLine($"OnParticleDraw called - Canvas size: {size.Width}x{size.Height}");
-
             _particleEngine?.Render(args.DrawingSession, size);
             sender.Invalidate(); // Request next frame for continuous animation
         }

@@ -12,26 +12,32 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
         private const int MAX_PARTICLES = 80;
         private const float EMISSION_RATE = 4.0f;
         private float _emissionAccumulator = 0.0f;
+        private ParticleSide _currentSide = ParticleSide.Both;
 
-        public void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime)
+        public void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime, ParticleSide side)
         {
+            _currentSide = side;
             _emissionAccumulator += EMISSION_RATE * deltaTime;
             int toEmit = (int)_emissionAccumulator;
             _emissionAccumulator -= toEmit;
 
+            if (toEmit > 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LIFE RENDERER] EmitParticles called: side={side}, toEmit={toEmit}, canvasWidth={canvasSize.Width}");
+            }
+
             for (int i = 0; i < toEmit && particles.Count < MAX_PARTICLES; i++)
             {
+                float x = GetXPositionForSide(side, canvasSize.Width);
+
                 particles.Add(new Particle
                 {
-                    Position = new Vector2(
-                        (float)(Random.Shared.NextDouble() * canvasSize.Width),
-                        (float)(Random.Shared.NextDouble() * canvasSize.Height)
-                    ),
+                    Position = new Vector2(x, -20), // Spawn at top of screen
                     Velocity = new Vector2(
-                        (float)(Random.Shared.NextDouble() - 0.5) * 15,
-                        (float)(Random.Shared.NextDouble() - 0.5) * 15
+                        (float)(Random.Shared.NextDouble() - 0.5) * 20,  // Gentle horizontal drift
+                        (float)(Random.Shared.NextDouble() * 30 + 40)    // Falling downward 40-70 px/s
                     ),
-                    Size = (float)(Random.Shared.NextDouble() * 8 + 4), // 4-12 pixels
+                    Size = (float)(Random.Shared.NextDouble() * 32 + 16), // 16-48 pixels (4x)
                     Opacity = (float)(Random.Shared.NextDouble() * 0.4 + 0.3), // 0.3-0.7
                     Life = 1.0f,
                     Rotation = (float)(Random.Shared.NextDouble() * Math.PI * 2),
@@ -49,24 +55,19 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
             {
                 var p = particles[i];
 
-                // Sine wave movement (floating)
-                var sineX = (float)Math.Sin(time * 0.5 + p.PhaseOffset) * 30;
-                var sineY = (float)Math.Cos(time * 0.3 + p.PhaseOffset) * 20;
-
-                p.Position += new Vector2(sineX * deltaTime, sineY * deltaTime);
+                // Gentle swaying as leaves fall
+                var sway = (float)Math.Sin(time * 2 + p.PhaseOffset) * 15;
+                p.Position += new Vector2(sway * deltaTime, 0);
                 p.Position += p.Velocity * deltaTime;
 
-                p.Rotation += deltaTime * 0.5f;
-                p.Life -= deltaTime * 0.3f; // 3+ second lifetime
+                // Rotate as they fall
+                p.Rotation += deltaTime * 1.0f;
 
-                // Wrap around screen
-                if (p.Position.X < -20) p.Position = new Vector2((float)canvasSize.Width + 20, p.Position.Y);
-                if (p.Position.X > canvasSize.Width + 20) p.Position = new Vector2(-20, p.Position.Y);
-                if (p.Position.Y < -20) p.Position = new Vector2(p.Position.X, (float)canvasSize.Height + 20);
-                if (p.Position.Y > canvasSize.Height + 20) p.Position = new Vector2(p.Position.X, -20);
-
-                if (p.Life <= 0)
+                // Remove when reaching bottom of screen (no life timer needed for falling)
+                if (p.Position.Y > canvasSize.Height + 20)
+                {
                     particles.RemoveAt(i);
+                }
             }
         }
 
@@ -76,8 +77,8 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
             {
                 var color = Color.FromArgb((byte)(p.Opacity * 255), p.Color.R, p.Color.G, p.Color.B);
 
-                // Draw leaf shape (simple ellipse rotated)
-                var transform = Matrix3x2.CreateRotation(p.Rotation, p.Position);
+                // Draw leaf shape (simple ellipse rotated) - rotate then translate
+                var transform = Matrix3x2.CreateRotation(p.Rotation) * Matrix3x2.CreateTranslation(p.Position);
                 ds.Transform = transform;
                 ds.FillEllipse(Vector2.Zero, p.Size * 1.5f, p.Size * 0.8f, color);
                 ds.Transform = Matrix3x2.Identity;
@@ -92,6 +93,19 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
                 0 => Color.FromArgb(255, 0, 255, 0),     // Bright green
                 1 => Color.FromArgb(255, 50, 200, 50),   // Medium green
                 _ => Color.FromArgb(255, 150, 255, 150)  // Light green
+            };
+        }
+
+        private float GetXPositionForSide(ParticleSide side, double canvasWidth)
+        {
+            return side switch
+            {
+                // Left: spawn on left half when there are figures on both portals
+                ParticleSide.Left => (float)(Random.Shared.NextDouble() * canvasWidth * 0.5),
+                // Right: spawn on right half when there are figures on both portals
+                ParticleSide.Right => (float)(Random.Shared.NextDouble() * canvasWidth * 0.5 + canvasWidth * 0.5),
+                // Both: spawn across entire width when only one Life figure
+                _ => (float)(Random.Shared.NextDouble() * canvasWidth)
             };
         }
     }

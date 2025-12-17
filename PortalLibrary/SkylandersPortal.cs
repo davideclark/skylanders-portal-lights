@@ -25,10 +25,43 @@ namespace PortalLibrary
         public string Name { get; set; }
         public ElementType Element { get; set; }
 
-        public FigureInfo(string name, ElementType element)
+        // Portal tracking
+        public int PortalProductId { get; set; }
+        public string PortalName { get; set; } = string.Empty;
+
+        // Encrypted stats (nullable for graceful degradation)
+        public int? Level { get; set; }
+        public int? Experience { get; set; }
+        public int? MaxExperience { get; set; }
+        public int? Gold { get; set; }
+        public uint? PlaytimeSeconds { get; set; }
+        public List<string>? Skills { get; set; }
+        public bool DecryptionSucceeded { get; set; }
+
+        public FigureInfo(string name, ElementType element, int portalProductId = 0, string portalName = "")
         {
             Name = name;
             Element = element;
+            PortalProductId = portalProductId;
+            PortalName = portalName;
+        }
+
+        public string GetLevelDisplay()
+        {
+            if (!DecryptionSucceeded || !Level.HasValue) return "Level Unknown";
+            return $"Level {Level.Value}";
+        }
+
+        public string GetExperienceDisplay()
+        {
+            if (!DecryptionSucceeded || !Experience.HasValue || !MaxExperience.HasValue) return "";
+            return $"{Experience.Value}/{MaxExperience.Value} XP";
+        }
+
+        public double GetExperienceProgress()
+        {
+            if (!Experience.HasValue || !MaxExperience.HasValue || MaxExperience.Value == 0) return 0.0;
+            return (double)Experience.Value / MaxExperience.Value;
         }
 
         public static (byte r, byte g, byte b) GetElementColor(ElementType element)
@@ -55,10 +88,15 @@ namespace PortalLibrary
         private UsbEndpointReader? reader;
         private bool isXboxPortal;
         private string portalName;
+        private int productId; // Actual product ID of connected portal
         private Dictionary<byte, FigureInfo> detectedFigures; // Maps figure index (0-15) to FigureInfo
+        private Dictionary<string, (DateTime lastRead, CharacterStats stats)> figureStatsCache; // Cache for decrypted stats (key: "index_figureId")
+        private Dictionary<byte, int> figureMissingCount; // Track how many cycles a figure has been missing (debouncing)
         private const int VENDOR_ID = 0x1430;
         private const int PRODUCT_ID = 0x0150;
         private const int XBOX_PRODUCT_ID = 0x1F17;
+        private const int CACHE_EXPIRY_SECONDS = 30; // Cache stats for 30 seconds
+        private const int DEBOUNCE_CYCLES = 3; // Number of missing cycles before removing a figure
 
         // Public properties
         public string PortalName => portalName;
@@ -129,9 +167,12 @@ namespace PortalLibrary
         public SkylandersPortal(UsbDevice device, int productId, string name)
         {
             usbDevice = device;
+            this.productId = productId;
             isXboxPortal = (productId == XBOX_PRODUCT_ID);
             portalName = name;
             detectedFigures = new Dictionary<byte, FigureInfo>();
+            figureStatsCache = new Dictionary<string, (DateTime lastRead, CharacterStats stats)>();
+            figureMissingCount = new Dictionary<byte, int>();
 
             // Open and claim the device
             if (!usbDevice.IsOpen)
@@ -409,31 +450,142 @@ namespace PortalLibrary
                         {
                             int dataOffset = offset + 3; // Skip command byte, figure index, block index
 
-                            // Figure ID is at offset 0x00 of the block data (first byte)
-                            // This is the character variant ID used in the database
+                            // Read Figure ID from offset 0x00 (using first byte for character identification)
                             byte figureId = block1Response[dataOffset + 0x00];
 
+                            // Create cache key combining index and figure ID
+                            string cacheKey = $"{figureIndex}_{figureId}";
+                            System.Diagnostics.Debug.WriteLine($"[{portalName}] Read figureId: 0x{figureId:X2} at index {figureIndex:X2}");
+                            System.Diagnostics.Debug.WriteLine($"[{portalName}] Cache key: {cacheKey}, Cache contains: {figureStatsCache.ContainsKey(cacheKey)}, Total cache entries: {figureStatsCache.Count}");
+
+                            FigureInfo? figureInfo = null;
+
                             // Use Figure ID to look up character in database
-                            if (CharacterDatabase.TryGetValue(figureId, out FigureInfo? figureInfo))
+                            if (CharacterDatabase.TryGetValue(figureId, out FigureInfo? templateInfo))
                             {
-                                return figureInfo;
+                                // Create new instance with portal info
+                                figureInfo = new FigureInfo(templateInfo.Name, templateInfo.Element, productId, portalName);
                             }
                             else
                             {
                                 // Unknown character - create generic info
-                                return new FigureInfo($"Unknown (ID:0x{figureId:X2})", ElementType.Unknown);
+                                figureInfo = new FigureInfo($"Unknown (ID:0x{figureId:X2})", ElementType.Unknown, productId, portalName);
                             }
+
+                            // Check cache for stats - if recent, use cached data
+                            if (figureStatsCache.TryGetValue(cacheKey, out var cachedEntry))
+                            {
+                                double cacheAgeSeconds = (DateTime.Now - cachedEntry.lastRead).TotalSeconds;
+                                System.Diagnostics.Debug.WriteLine($"[{portalName}] Cache found for {figureInfo.Name}, age: {cacheAgeSeconds:F1}s (expiry: {CACHE_EXPIRY_SECONDS}s)");
+
+                                if (cacheAgeSeconds < CACHE_EXPIRY_SECONDS)
+                                {
+                                    // Use cached stats
+                                    PopulateFigureStats(figureInfo, cachedEntry.stats);
+                                    System.Diagnostics.Debug.WriteLine($"[{portalName}] ✓ Using cached stats for {figureInfo.Name}");
+                                    return figureInfo;
+                                }
+                                else
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[{portalName}] Cache expired for {figureInfo.Name}, re-reading");
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[{portalName}] No cache entry for {figureInfo.Name} (key: {cacheKey})");
+                            }
+
+                            // TODO: Decrypt character stats (disabled for now due to reliability issues)
+                            // The encrypted block reading is:
+                            // 1. Slow (2+ seconds) causing concurrent IdentifyFigure calls
+                            // 2. Causing unstable Block 1 reads (figureId changes from 0x19 to 0xDF)
+                            // 3. Decryption still producing garbage despite copyright string fix
+                            // Need to investigate why Block 1 reads are unstable before re-enabling
+                            /*
+                            try
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[{portalName}] Reading encrypted blocks for {figureInfo.Name}...");
+
+                                // Read sector 0 blocks 0-1 for AES key derivation (32 bytes total)
+                                byte[] block0Response = ReadFigureBlock(queryIndex, 0);
+                                byte[] sector0Data = new byte[32];
+
+                                // Extract block 0 data (16 bytes)
+                                if (block0Response != null && block0Response.Length >= offset + 3 + 16)
+                                {
+                                    Array.Copy(block0Response, offset + 3, sector0Data, 0, 16);
+                                }
+
+                                // Extract block 1 data (16 bytes) - we already have this from earlier
+                                Array.Copy(block1Response, offset + 3, sector0Data, 16, 16);
+
+                                // Read encrypted Area 0 blocks: 8, 9, 10, 12, 13, 14 (skip sector trailers 11 and 15)
+                                var encryptedBlocks = new Dictionary<byte, byte[]>();
+
+                                for (byte blockIdx = 8; blockIdx <= 14; blockIdx++)
+                                {
+                                    // Skip sector trailers (11, 15)
+                                    if (blockIdx == 11) continue;
+
+                                    byte[] blockResponse = ReadFigureBlock(queryIndex, blockIdx);
+                                    if (blockResponse != null && blockResponse.Length >= offset + 3 + 16)
+                                    {
+                                        byte[] blockData = new byte[16];
+                                        Array.Copy(blockResponse, offset + 3, blockData, 0, 16);
+                                        encryptedBlocks[blockIdx] = blockData;
+                                    }
+
+                                    Thread.Sleep(50); // Reduced delay between reads
+                                }
+
+                                // Decrypt and parse stats
+                                CharacterStats stats = SkylendersCrypto.DecryptAndParseStats(sector0Data, encryptedBlocks);
+
+                                // Cache the stats with compound key
+                                figureStatsCache[cacheKey] = (DateTime.Now, stats);
+
+                                // Populate figure info with stats
+                                PopulateFigureStats(figureInfo, stats);
+
+                                System.Diagnostics.Debug.WriteLine($"[{portalName}] Successfully decrypted stats for {figureInfo.Name}: Level {stats.Level}, XP {stats.Experience}");
+                            }
+                            catch (Exception decryptEx)
+                            {
+                                Console.WriteLine($"[{portalName}] Failed to decrypt figure stats: {decryptEx.Message}");
+                                // Continue with basic info - stats will be null
+                            }
+                            */
+
+                            return figureInfo;
                         }
                     }
                 }
 
                 // Fallback if reading failed
-                return new FigureInfo("Skylander", ElementType.Magic);
+                return new FigureInfo("Skylander", ElementType.Magic, productId, portalName);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[{portalName}] Error reading figure: {ex.Message}");
                 return null;
+            }
+        }
+
+        private void PopulateFigureStats(FigureInfo figureInfo, CharacterStats stats)
+        {
+            if (stats.DecryptionSucceeded)
+            {
+                figureInfo.Level = stats.Level;
+                figureInfo.Experience = stats.Experience;
+                figureInfo.MaxExperience = stats.MaxExperience;
+                figureInfo.Gold = stats.Gold;
+                figureInfo.PlaytimeSeconds = stats.PlaytimeSeconds;
+                figureInfo.Skills = stats.Skills;
+                figureInfo.DecryptionSucceeded = true;
+            }
+            else
+            {
+                figureInfo.DecryptionSucceeded = false;
             }
         }
 
@@ -526,6 +678,9 @@ namespace PortalLibrary
                         {
                             currentlyPresent.Add(figureIndex);
 
+                            // Reset missing count if figure is present
+                            figureMissingCount[figureIndex] = 0;
+
                             // Identify new figures (either ADDED or PRESENT if not already tracked)
                             if (!detectedFigures.ContainsKey(figureIndex))
                             {
@@ -553,18 +708,32 @@ namespace PortalLibrary
             }
 
             // Clean up any figures that are no longer present (but didn't trigger REMOVED event)
+            // Use debouncing to avoid flickering - only remove after multiple missing cycles
             List<byte> toRemove = new List<byte>();
             foreach (byte figureIndex in detectedFigures.Keys)
             {
                 if (!currentlyPresent.Contains(figureIndex))
                 {
-                    toRemove.Add(figureIndex);
+                    // Increment missing count
+                    if (!figureMissingCount.ContainsKey(figureIndex))
+                        figureMissingCount[figureIndex] = 0;
+
+                    figureMissingCount[figureIndex]++;
+
+                    System.Diagnostics.Debug.WriteLine($"[{portalName}] Figure at index {figureIndex} missing for {figureMissingCount[figureIndex]} cycles");
+
+                    // Only remove if missing for DEBOUNCE_CYCLES consecutive cycles
+                    if (figureMissingCount[figureIndex] >= DEBOUNCE_CYCLES)
+                    {
+                        toRemove.Add(figureIndex);
+                    }
                 }
             }
             foreach (byte figureIndex in toRemove)
             {
                 FigureInfo removedFigure = detectedFigures[figureIndex];
                 detectedFigures.Remove(figureIndex);
+                figureMissingCount.Remove(figureIndex);
                 Console.WriteLine($"[{portalName}] *** Figure REMOVED at index {figureIndex}: {removedFigure.Name} ***");
             }
         }

@@ -13,7 +13,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
         private const float EMISSION_RATE = 9.0f;
         private float _emissionAccumulator = 0.0f;
 
-        public void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime)
+        public void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime, ParticleSide side)
         {
             _emissionAccumulator += EMISSION_RATE * deltaTime;
             int toEmit = (int)_emissionAccumulator;
@@ -28,7 +28,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
                 switch (edge)
                 {
                     case 0: // Top
-                        position = new Vector2((float)(Random.Shared.NextDouble() * canvasSize.Width), 0);
+                        position = new Vector2(GetXPositionForSide(side, canvasSize.Width), 0);
                         velocity = new Vector2((float)(Random.Shared.NextDouble() - 0.5) * 100, (float)(Random.Shared.NextDouble() * 80 + 40));
                         break;
                     case 1: // Right
@@ -36,7 +36,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
                         velocity = new Vector2(-(float)(Random.Shared.NextDouble() * 80 + 40), (float)(Random.Shared.NextDouble() - 0.5) * 100);
                         break;
                     case 2: // Bottom
-                        position = new Vector2((float)(Random.Shared.NextDouble() * canvasSize.Width), (float)canvasSize.Height);
+                        position = new Vector2(GetXPositionForSide(side, canvasSize.Width), (float)canvasSize.Height);
                         velocity = new Vector2((float)(Random.Shared.NextDouble() - 0.5) * 100, -(float)(Random.Shared.NextDouble() * 80 + 40));
                         break;
                     default: // Left
@@ -49,7 +49,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
                 {
                     Position = position,
                     Velocity = velocity,
-                    Size = (float)(Random.Shared.NextDouble() * 3 + 2), // 2-5 pixels
+                    Size = (float)(Random.Shared.NextDouble() * 12 + 8), // 8-20 pixels (4x)
                     Opacity = (float)(Random.Shared.NextDouble() * 0.7 + 0.3), // 0.3-1.0
                     Life = 1.0f,
                     Color = GetTechColor()
@@ -105,6 +105,16 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
             {
                 0 => Color.FromArgb(255, 255, 150, 0),   // Orange
                 _ => Color.FromArgb(255, 255, 200, 100)  // Light orange/yellow
+            };
+        }
+
+        private float GetXPositionForSide(ParticleSide side, double canvasWidth)
+        {
+            return side switch
+            {
+                ParticleSide.Left => (float)(Random.Shared.NextDouble() * canvasWidth * 0.5),
+                ParticleSide.Right => (float)(Random.Shared.NextDouble() * canvasWidth * 0.5 + canvasWidth * 0.5),
+                _ => (float)(Random.Shared.NextDouble() * canvasWidth)
             };
         }
     }

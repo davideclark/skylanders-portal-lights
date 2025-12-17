@@ -14,7 +14,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
         private const float EMISSION_RATE = 8.0f; // particles per second
         private float _emissionAccumulator = 0.0f;
 
-        public void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime)
+        public void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime, ParticleSide side)
         {
             _emissionAccumulator += EMISSION_RATE * deltaTime;
             int toEmit = (int)_emissionAccumulator;
@@ -22,17 +22,16 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
 
             for (int i = 0; i < toEmit && particles.Count < MAX_PARTICLES; i++)
             {
+                float x = GetXPositionForSide(side, canvasSize.Width);
+
                 particles.Add(new Particle
                 {
-                    Position = new Vector2(
-                        (float)(Random.Shared.NextDouble() * canvasSize.Width),
-                        (float)canvasSize.Height // Start at bottom
-                    ),
+                    Position = new Vector2(x, (float)canvasSize.Height), // Start at bottom
                     Velocity = new Vector2(
                         (float)(Random.Shared.NextDouble() - 0.5) * 20, // Slight horizontal drift
                         -(float)(Random.Shared.NextDouble() * 80 + 40)  // Upward movement
                     ),
-                    Size = (float)(Random.Shared.NextDouble() * 6 + 3), // 3-9 pixels
+                    Size = (float)(Random.Shared.NextDouble() * 24 + 12), // 12-36 pixels (4x)
                     Opacity = (float)Random.Shared.NextDouble() * 0.6f + 0.3f, // 0.3-0.9
                     Life = 1.0f,
                     Color = GetFireColor()
@@ -89,6 +88,16 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
                 0 => Color.FromArgb(255, 255, 100, 0),   // Orange
                 1 => Color.FromArgb(255, 255, 50, 0),    // Red-orange
                 _ => Color.FromArgb(255, 255, 200, 50)   // Yellow
+            };
+        }
+
+        private float GetXPositionForSide(ParticleSide side, double canvasWidth)
+        {
+            return side switch
+            {
+                ParticleSide.Left => (float)(Random.Shared.NextDouble() * canvasWidth * 0.5),
+                ParticleSide.Right => (float)(Random.Shared.NextDouble() * canvasWidth * 0.5 + canvasWidth * 0.5),
+                _ => (float)(Random.Shared.NextDouble() * canvasWidth)
             };
         }
     }

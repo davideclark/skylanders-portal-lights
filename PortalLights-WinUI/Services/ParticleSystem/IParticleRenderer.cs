@@ -7,7 +7,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem
     public interface IParticleRenderer
     {
         void Render(CanvasDrawingSession ds, List<Particle> particles, Size canvasSize);
-        void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime);
+        void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime, ParticleSide side);
         void UpdateParticles(List<Particle> particles, float deltaTime, Size canvasSize);
     }
 }

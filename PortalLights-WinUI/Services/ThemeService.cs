@@ -30,24 +30,24 @@ namespace PortalLights.WinUI.Services
 
             var brush = new LinearGradientBrush
             {
-                StartPoint = new Windows.Foundation.Point(0, 0),
-                EndPoint = new Windows.Foundation.Point(1, 1)
+                StartPoint = new Windows.Foundation.Point(0, 0.5),
+                EndPoint = new Windows.Foundation.Point(1, 0.5) // Horizontal gradient
             };
 
-            // Multi-stop gradient for depth
+            // Horizontal gradient: light on left, darkest on right (where figure is)
             brush.GradientStops.Add(new GradientStop
             {
-                Color = colors.primary,
+                Color = colors.accent, // Lightest
                 Offset = 0.0
             });
             brush.GradientStops.Add(new GradientStop
             {
-                Color = colors.secondary,
+                Color = colors.primary, // Bright/vibrant
                 Offset = 0.5
             });
             brush.GradientStops.Add(new GradientStop
             {
-                Color = colors.accent,
+                Color = colors.secondary, // Darkest/most saturated
                 Offset = 1.0
             });
 
@@ -116,9 +116,9 @@ namespace PortalLights.WinUI.Services
                 ),
 
                 ElementType.Water => (
-                    Color.FromArgb(255, 0, 100, 255),    // Deep blue
-                    Color.FromArgb(255, 0, 200, 255),    // Cyan
-                    Color.FromArgb(255, 100, 150, 255)   // Light blue
+                    Color.FromArgb(255, 0, 200, 255),    // Cyan (bright)
+                    Color.FromArgb(255, 0, 100, 255),    // Deep blue (darkest)
+                    Color.FromArgb(255, 100, 150, 255)   // Light blue (lightest)
                 ),
 
                 ElementType.Life => (
@@ -128,9 +128,9 @@ namespace PortalLights.WinUI.Services
                 ),
 
                 ElementType.Earth => (
-                    Color.FromArgb(255, 139, 90, 43),    // Brown
-                    Color.FromArgb(255, 200, 120, 0),    // Orange-brown
-                    Color.FromArgb(255, 101, 67, 33)     // Dark brown
+                    Color.FromArgb(255, 139, 90, 43),    // Brown (medium)
+                    Color.FromArgb(255, 101, 67, 33),    // Dark brown (darkest)
+                    Color.FromArgb(255, 200, 120, 0)     // Orange-brown (lightest)
                 ),
 
                 ElementType.Undead => (
@@ -215,22 +215,71 @@ namespace PortalLights.WinUI.Services
 
         private Brush CreateQuadrantBlend(IReadOnlyList<FigureInfo> figures)
         {
-            var colors = figures.Select(f => GetElementGradientColors(f.Element)).ToArray();
+            // Group figures by portal for cleaner blending
+            var leftPortalFigures = figures.Where(f => f.PortalProductId == 0x0150).ToList();
+            var rightPortalFigures = figures.Where(f => f.PortalProductId == 0x1F17).ToList();
 
-            // Create complex gradient with all 4 corners represented
-            var brush = new LinearGradientBrush
+            // If all figures on same portal, use simpler gradient
+            if (leftPortalFigures.Count == 0 || rightPortalFigures.Count == 0)
+            {
+                // All on one portal - blend all elements
+                var allColors = figures.Select(f => GetElementGradientColors(f.Element)).ToArray();
+                var leftColor = allColors[0].primary;
+                var centerColor = BlendMultiple(allColors.Select(c => c.secondary).ToArray());
+                var rightColor = allColors[allColors.Length - 1].accent;
+
+                var brush = new LinearGradientBrush
+                {
+                    StartPoint = new Windows.Foundation.Point(0, 0.5),
+                    EndPoint = new Windows.Foundation.Point(1, 0.5)
+                };
+
+                brush.GradientStops.Add(new GradientStop { Color = leftColor, Offset = 0.0 });
+                brush.GradientStops.Add(new GradientStop { Color = centerColor, Offset = 0.5 });
+                brush.GradientStops.Add(new GradientStop { Color = rightColor, Offset = 1.0 });
+
+                return brush;
+            }
+
+            // Portal-based gradient: left portal on left, right portal on right
+            var leftColors = leftPortalFigures.Select(f => GetElementGradientColors(f.Element)).ToArray();
+            var rightColors = rightPortalFigures.Select(f => GetElementGradientColors(f.Element)).ToArray();
+
+            // Blend colors for each portal
+            var leftPrimary = BlendMultiple(leftColors.Select(c => c.primary).ToArray());
+            var leftSecondary = BlendMultiple(leftColors.Select(c => c.secondary).ToArray());
+            var rightPrimary = BlendMultiple(rightColors.Select(c => c.primary).ToArray());
+            var rightSecondary = BlendMultiple(rightColors.Select(c => c.secondary).ToArray());
+
+            var portalBrush = new LinearGradientBrush
             {
                 StartPoint = new Windows.Foundation.Point(0, 0.5),
                 EndPoint = new Windows.Foundation.Point(1, 0.5)
             };
 
-            brush.GradientStops.Add(new GradientStop { Color = colors[0].primary, Offset = 0.0 });
-            brush.GradientStops.Add(new GradientStop { Color = BlendMultiple(colors[0].secondary, colors[2].primary), Offset = 0.25 });
-            brush.GradientStops.Add(new GradientStop { Color = BlendMultiple(colors[0].accent, colors[1].primary, colors[2].secondary, colors[3].primary), Offset = 0.5 });
-            brush.GradientStops.Add(new GradientStop { Color = BlendMultiple(colors[1].secondary, colors[3].secondary), Offset = 0.75 });
-            brush.GradientStops.Add(new GradientStop { Color = colors[1].accent, Offset = 1.0 });
+            // Left side: vibrant color at edge, fade through secondary
+            portalBrush.GradientStops.Add(new GradientStop { Color = leftPrimary, Offset = 0.0 });
+            portalBrush.GradientStops.Add(new GradientStop { Color = leftSecondary, Offset = 0.25 });
 
-            return brush;
+            // Center: darker neutral zone to avoid muddy blends
+            // Desaturate the colors for a cleaner transition
+            var centerLeft = Color.FromArgb(255,
+                (byte)(leftSecondary.R * 0.4),
+                (byte)(leftSecondary.G * 0.4),
+                (byte)(leftSecondary.B * 0.4));
+            var centerRight = Color.FromArgb(255,
+                (byte)(rightPrimary.R * 0.4),
+                (byte)(rightPrimary.G * 0.4),
+                (byte)(rightPrimary.B * 0.4));
+
+            portalBrush.GradientStops.Add(new GradientStop { Color = centerLeft, Offset = 0.45 });
+            portalBrush.GradientStops.Add(new GradientStop { Color = centerRight, Offset = 0.55 });
+
+            // Right side: fade through primary (brighter), darkest color at edge
+            portalBrush.GradientStops.Add(new GradientStop { Color = rightPrimary, Offset = 0.75 });
+            portalBrush.GradientStops.Add(new GradientStop { Color = rightSecondary, Offset = 1.0 });
+
+            return portalBrush;
         }
 
         private Brush CreateRadialBlendAll(IReadOnlyList<FigureInfo> figures)

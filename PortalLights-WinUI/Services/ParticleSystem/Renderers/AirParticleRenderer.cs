@@ -13,7 +13,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
         private const float EMISSION_RATE = 6.0f;
         private float _emissionAccumulator = 0.0f;
 
-        public void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime)
+        public void EmitParticles(List<Particle> particles, Size canvasSize, float deltaTime, ParticleSide side)
         {
             _emissionAccumulator += EMISSION_RATE * deltaTime;
             int toEmit = (int)_emissionAccumulator;
@@ -21,17 +21,16 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
 
             for (int i = 0; i < toEmit && particles.Count < MAX_PARTICLES; i++)
             {
+                float y = GetYPositionForSide(side, canvasSize.Height);
+
                 particles.Add(new Particle
                 {
-                    Position = new Vector2(
-                        -20, // Start from left edge
-                        (float)(Random.Shared.NextDouble() * canvasSize.Height)
-                    ),
+                    Position = new Vector2(-20, y), // Start from left edge
                     Velocity = new Vector2(
                         (float)(Random.Shared.NextDouble() * 60 + 40), // Horizontal movement
                         (float)(Random.Shared.NextDouble() - 0.5) * 20  // Slight vertical drift
                     ),
-                    Size = (float)(Random.Shared.NextDouble() * 10 + 5), // 5-15 pixels
+                    Size = (float)(Random.Shared.NextDouble() * 40 + 20), // 20-60 pixels (4x)
                     Opacity = (float)(Random.Shared.NextDouble() * 0.4 + 0.2), // 0.2-0.6
                     Life = 1.0f,
                     PhaseOffset = (float)(Random.Shared.NextDouble() * Math.PI * 2),
@@ -78,6 +77,16 @@ namespace PortalLights.WinUI.Services.ParticleSystem.Renderers
         {
             // White/light yellow for air/clouds
             return Color.FromArgb(255, 245, 245, 255);
+        }
+
+        private float GetYPositionForSide(ParticleSide side, double canvasHeight)
+        {
+            return side switch
+            {
+                ParticleSide.Left => (float)(Random.Shared.NextDouble() * canvasHeight * 0.5),
+                ParticleSide.Right => (float)(Random.Shared.NextDouble() * canvasHeight * 0.5 + canvasHeight * 0.5),
+                _ => (float)(Random.Shared.NextDouble() * canvasHeight)
+            };
         }
     }
 }

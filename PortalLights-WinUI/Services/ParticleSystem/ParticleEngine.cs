@@ -9,11 +9,19 @@ using Windows.Foundation;
 
 namespace PortalLights.WinUI.Services.ParticleSystem
 {
+    public enum ParticleSide
+    {
+        Left,
+        Right,
+        Both
+    }
+
     public class ParticleEngine : IDisposable
     {
         private DispatcherQueueTimer _animationTimer;
         private Dictionary<ElementType, List<Particle>> _particlesByElement;
         private Dictionary<ElementType, float> _elementOpacity;
+        private Dictionary<ElementType, ParticleSide> _elementSide;
         private Dictionary<ElementType, IParticleRenderer> _renderers;
         private HashSet<ElementType> _activeElements;
         private DateTime _lastUpdate;
@@ -33,6 +41,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem
 
             _particlesByElement = new Dictionary<ElementType, List<Particle>>();
             _elementOpacity = new Dictionary<ElementType, float>();
+            _elementSide = new Dictionary<ElementType, ParticleSide>();
             _activeElements = new HashSet<ElementType>();
             _renderers = new Dictionary<ElementType, IParticleRenderer>();
             _particlePool = new Queue<Particle>(500);
@@ -53,6 +62,36 @@ namespace PortalLights.WinUI.Services.ParticleSystem
         {
             _activeElements = new HashSet<ElementType>(figures.Select(f => f.Element));
             System.Diagnostics.Debug.WriteLine($"SetActiveElements: {figures.Count} figures, Active elements: {string.Join(", ", _activeElements)}");
+
+            // Calculate which side each element should appear on
+            // 0x0150 = PS/PC portal (left side), 0x1F17 = Xbox portal (right side)
+            foreach (var element in _activeElements)
+            {
+                var elementFigures = figures.Where(f => f.Element == element).ToList();
+
+                // Debug: Show PortalProductId for each figure
+                foreach (var fig in elementFigures)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  Figure: {fig.Name} ({fig.Element}) - PortalProductId: 0x{fig.PortalProductId:X4}");
+                }
+
+                var hasLeftPortal = elementFigures.Any(f => f.PortalProductId == 0x0150);
+                var hasRightPortal = elementFigures.Any(f => f.PortalProductId == 0x1F17);
+
+                if (hasLeftPortal && hasRightPortal)
+                    _elementSide[element] = ParticleSide.Both;
+                else if (hasLeftPortal)
+                    _elementSide[element] = ParticleSide.Left;
+                else if (hasRightPortal)
+                    _elementSide[element] = ParticleSide.Right;
+                else
+                {
+                    _elementSide[element] = ParticleSide.Both; // Default to both if unknown
+                    System.Diagnostics.Debug.WriteLine($"  WARNING: {element} has unknown portal (not 0x0150 or 0x1F17), defaulting to Both");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"  {element} -> {_elementSide[element]} side (hasLeft={hasLeftPortal}, hasRight={hasRightPortal})");
+            }
 
             // Initialize or update opacity for all elements
             foreach (var element in Enum.GetValues<ElementType>())
@@ -77,7 +116,6 @@ namespace PortalLights.WinUI.Services.ParticleSystem
         {
             _canvasSize = canvasSize;
 
-            var totalParticlesRendered = 0;
             // Render all active particle systems
             foreach (var (element, particles) in _particlesByElement.ToList())
             {
@@ -85,13 +123,7 @@ namespace PortalLights.WinUI.Services.ParticleSystem
                 if (opacity > 0.01f && _renderers.ContainsKey(element))
                 {
                     _renderers[element].Render(ds, particles, canvasSize);
-                    totalParticlesRendered += particles.Count;
                 }
-            }
-
-            if (totalParticlesRendered > 0)
-            {
-                System.Diagnostics.Debug.WriteLine($"Render: Drew {totalParticlesRendered} total particles across {_particlesByElement.Count} systems");
             }
         }
 
@@ -117,10 +149,11 @@ namespace PortalLights.WinUI.Services.ParticleSystem
                     else if (_elementOpacity[element] > targetOpacity)
                         _elementOpacity[element] = Math.Max(0.0f, _elementOpacity[element] - FADE_SPEED * deltaTime);
 
-                    if (oldOpacity != _elementOpacity[element])
-                    {
-                        System.Diagnostics.Debug.WriteLine($"  Opacity {element}: {oldOpacity:F2} → {_elementOpacity[element]:F2} (target: {targetOpacity})");
-                    }
+                    // Opacity changes (debug logging disabled to reduce spam)
+                    // if (oldOpacity != _elementOpacity[element])
+                    // {
+                    //     System.Diagnostics.Debug.WriteLine($"  Opacity {element}: {oldOpacity:F2} → {_elementOpacity[element]:F2} (target: {targetOpacity})");
+                    // }
                 }
 
                 // Update and emit particles
@@ -130,15 +163,10 @@ namespace PortalLights.WinUI.Services.ParticleSystem
 
                     if (opacity > 0.01f && _renderers.ContainsKey(element))
                     {
-                        var particleCountBefore = particles.Count;
                         var renderer = _renderers[element];
-                        renderer.EmitParticles(particles, _canvasSize, deltaTime * opacity);
+                        var side = _elementSide.GetValueOrDefault(element, ParticleSide.Both);
+                        renderer.EmitParticles(particles, _canvasSize, deltaTime * opacity, side);
                         renderer.UpdateParticles(particles, deltaTime, _canvasSize);
-
-                        if (particles.Count != particleCountBefore)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"  {element}: {particleCountBefore} → {particles.Count} particles (opacity: {opacity:F2})");
-                        }
 
                         // Apply global opacity to all particles
                         foreach (var p in particles)
@@ -155,15 +183,12 @@ namespace PortalLights.WinUI.Services.ParticleSystem
                     }
                 }
 
-                // Performance monitoring
+                // Performance monitoring (debug logging disabled)
                 _frameCount++;
                 if ((DateTime.Now - _lastFpsCheck).TotalSeconds >= 1.0)
                 {
-                    var fps = _frameCount;
                     _frameCount = 0;
                     _lastFpsCheck = DateTime.Now;
-
-                    System.Diagnostics.Debug.WriteLine($"Particle Engine FPS: {fps}");
                 }
             }
             catch (Exception ex)

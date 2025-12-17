@@ -29,6 +29,32 @@
                               HorizontalAlignment="Stretch"
                               VerticalAlignment="Stretch"/>
 
+        <!-- LEFT panel for PS/PC portal (0x0150) -->
+        <StackPanel x:Name="LeftFigurePanel"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Margin="40,0,0,0"
+                    Spacing="20"
+                    Visibility="Collapsed"
+                    Background="#80000000"
+                    Padding="20"
+                    CornerRadius="8"
+                    Canvas.ZIndex="10">
+        </StackPanel>
+
+        <!-- RIGHT panel for Xbox portal (0x1F17) -->
+        <StackPanel x:Name="RightFigurePanel"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Margin="0,0,40,0"
+                    Spacing="20"
+                    Visibility="Collapsed"
+                    Background="#80000000"
+                    Padding="20"
+                    CornerRadius="8"
+                    Canvas.ZIndex="10">
+        </StackPanel>
+
         <!-- Optional: Figure info overlay (can be hidden) -->
         <StackPanel x:Name="InfoPanel"
                     VerticalAlignment="Bottom"
